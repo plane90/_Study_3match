@@ -1,4 +1,5 @@
-﻿using Board.Model;
+﻿using System;
+using Board.Model;
 using Board.View;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -19,6 +20,7 @@ namespace Board.Presenter
         public void InitBoardData()
         {
             _boardData = new BoardData(rows, cols);
+            
 
             foreach (var blockData in _boardData.BlockDataArray2D)
             {
