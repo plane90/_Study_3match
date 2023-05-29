@@ -1,3 +1,5 @@
+using BoardSystem;
+
 namespace BlockSystem.Model
 {
     public enum BlockType
@@ -6,8 +8,14 @@ namespace BlockSystem.Model
     }
 
     [System.Serializable]
-    public struct BlockData
+    public class BlockData
     {
         public BlockType blockType;
+        public Vec2 idxArray2D;
+
+        public BlockData(Vec2 idxArray2D)
+        {
+            this.idxArray2D = idxArray2D;
+        }
     }
 }
