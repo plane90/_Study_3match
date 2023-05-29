@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
-using BlockSystem.Model;
+using Board.Model;
 using UnityEngine;
 
-namespace BoardSystem
+namespace Board
 {
     public class MatchFinder : MonoBehaviour
     {
@@ -35,7 +35,7 @@ namespace BoardSystem
             }
             
             stopWatch.Stop();
-            UnityEngine.Debug.Log($"done: {stopWatch.Elapsed.TotalMilliseconds.ToString()}");
+            UnityEngine.Debug.Log($"GetMatchedBlocksData Done: {stopWatch.Elapsed.TotalMilliseconds.ToString()}");
             
             return _visited;
         }

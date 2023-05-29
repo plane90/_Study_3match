@@ -1,9 +1,9 @@
-﻿using BlockSystem.Model;
-using BoardSystem.View;
+﻿using Board.Model;
+using Board.View;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
-namespace BoardSystem.Presenter
+namespace Board.Presenter
 {
     public class BoardCtrl: MonoBehaviour
     {

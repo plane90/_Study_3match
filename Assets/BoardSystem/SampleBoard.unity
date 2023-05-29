@@ -824,8 +824,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _blockPrefab: {fileID: 409133042261599147, guid: 9bb13a367b8636c44aea8fb024d35034, type: 3}
-  _board: {fileID: 1944380871}
-  rows: 11
+  _boardObj: {fileID: 1944380871}
+  rows: 9
   cols: 9
 --- !u!4 &1854445969
 Transform:
@@ -878,7 +878,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 396, y: 396}
+  m_SizeDelta: {x: 1315.5923, y: 1315.5923}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1944380872
 MonoBehaviour:

@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
-using BlockSystem.Model;
+using Board.Model;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace BoardSystem.View
+namespace Board.View
 {
     public class Block: MonoBehaviour
     {

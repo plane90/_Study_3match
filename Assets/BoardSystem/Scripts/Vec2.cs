@@ -1,10 +1,13 @@
+using System;
 
-namespace BoardSystem
+namespace Board
 {
-    [System.Serializable]
+    [Serializable]
     public struct Vec2
     {
+        /// row
         public int Y { get; set; }
+        /// column
         public int X { get; set; }
 
         public static Vec2 up = new(-1, 0); 
@@ -23,6 +26,12 @@ namespace BoardSystem
         public static Vec2 operator *(Vec2 lhs, int rhs) => new(lhs.Y * rhs, lhs.X * rhs);
         
         public static Vec2 operator *(int lhs, Vec2 rhs) => new(rhs.Y * lhs, rhs.X * lhs);
+
+        public bool Equals(Vec2 other) => Y == other.Y && X == other.X;
+
+        public override bool Equals(object obj) => obj is Vec2 other && Equals(other);
+
+        public override int GetHashCode() => HashCode.Combine(Y, X);
 
         public override string ToString() => $"({Y},{X})";
 
