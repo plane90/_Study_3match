@@ -1,25 +1,24 @@
 using System.Collections.Generic;
-using System.Diagnostics;
 using Board.Model;
-using UnityEngine;
 
 namespace Board
 {
-    public class MatchFinder : MonoBehaviour
+    public class MatchFinder
     {
-        private static readonly Vec2[] _directions = { Vec2.up, Vec2.right, Vec2.down, Vec2.left };
-        private static BoardData _curBoardData;
-        private static readonly HashSet<BlockData> _visited = new();
+        private static readonly BoardVec2[] Directions = { BoardVec2.up, BoardVec2.right, BoardVec2.down, BoardVec2.left };
+        private readonly BoardData _boardData;
+        private readonly HashSet<BlockData> _visited = new();
 
-        public static HashSet<BlockData> GetMatchedBlocksData(BoardData boardData)
+        public MatchFinder(BoardData boardData)
         {
-            var stopWatch = new Stopwatch();
-            stopWatch.Start();
-            
-            _curBoardData = boardData;
+            _boardData = boardData;
+        }
+
+        public HashSet<BlockData> GetMatchedBlocksData()
+        {
             _visited.Clear();
             
-            foreach (var blockData in boardData.BlockDataArray2D)
+            foreach (var blockData in _boardData.BlockDataArray2D)
             {
                 if (_visited.Contains(blockData))
                     continue;
@@ -34,23 +33,19 @@ namespace Board
                     TraverseDfs(blockData);
             }
             
-            stopWatch.Stop();
-            UnityEngine.Debug.Log($"GetMatchedBlocksData Done: {stopWatch.Elapsed.TotalMilliseconds.ToString()}");
-            
             return _visited;
         }
 
-        private static bool FindMatchLine(BlockData blockData)
+        private bool FindMatchLine(BlockData blockData)
         {
-            var targetType = blockData.blockType;
-            foreach (var dir in _directions)
+            foreach (var dir in Directions)
             {
                 bool isMatch = true;
                 for (int i = 1; i <= 2; i++)
                 {
-                    var nextPos = blockData.idxArray2D + dir * i;
+                    var nextPos = blockData.array2dIdx + dir * i;
                     if (!IsOutOfBound(nextPos) && 
-                        _curBoardData.GetBlockTypeAt(nextPos) == blockData.blockType)
+                        _boardData.GetCurBlockTypeAt(nextPos) == blockData.currentType)
                     {
                         continue;
                     }
@@ -65,17 +60,17 @@ namespace Board
             return false;
         }
 
-        private static bool FindMatchCube(BlockData blockData)
+        private bool FindMatchCube(BlockData blockData)
         {
             for (int start = 0; start < 4; start++)
             {
                 bool isMatch = true;
-                var nextPos = blockData.idxArray2D;
+                var nextPos = blockData.array2dIdx;
                 for (int i = 0; i < 4; i++)
                 {
-                    nextPos += _directions[(start + i) % 4];
+                    nextPos += Directions[(start + i) % 4];
                     if (!IsOutOfBound(nextPos) && 
-                        _curBoardData.GetBlockTypeAt(nextPos) == blockData.blockType)
+                        _boardData.GetCurBlockTypeAt(nextPos) == blockData.currentType)
                     {
                         continue;
                     }
@@ -90,26 +85,25 @@ namespace Board
             return false;
         }
 
-        private static bool IsOutOfBound(Vec2 nextPos) => 
-            nextPos.X < 0 || nextPos.X >= _curBoardData.Cols ||
-            nextPos.Y < 0 || nextPos.Y >= _curBoardData.Rows;
+        private bool IsOutOfBound(BoardVec2 nextPos) => 
+            nextPos.X < 0 || nextPos.X >= _boardData.Cols ||
+            nextPos.Y < 0 || nextPos.Y >= _boardData.Rows;
 
-        private static void TraverseDfs(BlockData blockData)
+        private void TraverseDfs(BlockData blockData)
         {
             _visited.Add(blockData);
-            foreach (var dir in _directions)
+            foreach (var dir in Directions)
             {
-                var nextPos = blockData.idxArray2D + dir;
+                var nextPos = blockData.array2dIdx + dir;
                 if (IsOutOfBound(nextPos) ||
-                    _curBoardData.GetBlockTypeAt(nextPos) != blockData.blockType ||
-                    _visited.Contains(_curBoardData.GetBlockDataAt(nextPos)))
+                    _boardData.GetCurBlockTypeAt(nextPos) != blockData.currentType ||
+                    _visited.Contains(_boardData.GetBlockDataAt(nextPos)))
                 {
                     continue;
                 }
-                TraverseDfs(_curBoardData.GetBlockDataAt(nextPos));
+                TraverseDfs(_boardData.GetBlockDataAt(nextPos));
             }
         }
-        
         
     }
 }

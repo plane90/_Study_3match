@@ -7,14 +7,14 @@
         public int Rows { get; }
         public int Cols { get; }
         
-        public BoardData(int rows, int cols) : this(rows, cols, new BlockType[rows, cols]) { }
+        public BoardData(int rows, int cols) : this(new BlockType[rows, cols]) { }
         
-        public BoardData(int rows, int cols, BlockType[,] blockTypes)
+        public BoardData(BlockType[,] blockTypes)
         {
-            Rows = rows;
-            Cols = cols;
+            Rows = blockTypes.GetLength(0);
+            Cols = blockTypes.GetLength(1);
 
-            BlockDataArray2D = BlockData.CreateBlockDataArray2D(rows, cols, blockTypes);
+            BlockDataArray2D = BlockData.CreateBlockDataArray2D(Rows, Cols, blockTypes);
         }
         
         public BoardData(int rows, int cols, BlockData[,] blockDataArray2D)
@@ -27,8 +27,10 @@
 
         public BoardData(BoardData other) : this(other.Rows, other.Cols, other.BlockDataArray2D) { }
 
-        public BlockType GetBlockTypeAt(Vec2 idxArray2D) => BlockDataArray2D[idxArray2D.Y, idxArray2D.X].blockType;
+        public BlockType GetCurBlockTypeAt(BoardVec2 idxArray2D) => BlockDataArray2D[idxArray2D.Y, idxArray2D.X].currentType;
         
-        public BlockData GetBlockDataAt(Vec2 idxArray2D) => BlockDataArray2D[idxArray2D.Y, idxArray2D.X];
+        public BlockData GetBlockDataAt(BoardVec2 idxArray2D) => BlockDataArray2D[idxArray2D.Y, idxArray2D.X];
+
+        public void SetBlockDataAt(BoardVec2 array2dIdx, BlockData blockData) => BlockDataArray2D[array2dIdx.Y, array2dIdx.X] = blockData;
     }
 }

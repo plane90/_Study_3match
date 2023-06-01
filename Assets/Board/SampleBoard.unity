@@ -823,10 +823,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca89b48b7b204a7d8c1c154acdef5b8d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _blockPrefab: {fileID: 409133042261599147, guid: 9bb13a367b8636c44aea8fb024d35034, type: 3}
-  _boardObj: {fileID: 1944380871}
-  rows: 9
-  cols: 9
+  _blockRPrefab: {fileID: 409133042261599147, guid: 9bb13a367b8636c44aea8fb024d35034, type: 3}
+  _blockGPrefab: {fileID: 409133042261599147, guid: 6b0538b88fae6964aa0a6708104357cd, type: 3}
+  _blockBPrefab: {fileID: 409133042261599147, guid: cb07e9da469416c4a82a84ca18c320f9, type: 3}
+  _blockYPrefab: {fileID: 409133042261599147, guid: 34e7d62e4e3963440b958c340ef9cb37, type: 3}
+  _boardRectTransform: {fileID: 1944380871}
+  rows: 3
+  cols: 3
 --- !u!4 &1854445969
 Transform:
   m_ObjectHideFlags: 0
@@ -878,7 +881,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1315.5923, y: 1315.5923}
+  m_SizeDelta: {x: 396, y: 396}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1944380872
 MonoBehaviour:
