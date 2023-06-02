@@ -11,7 +11,7 @@ namespace Board.Model
     
     public enum BlockState
     {
-        Disable, Enable, Moving, Ready,
+        Disable, Enable, Updating, Ready,
     }
     
     [System.Serializable]
@@ -26,6 +26,7 @@ namespace Board.Model
         {
             this.array2dIdx = array2dIdx;
             _initType = initType;
+            state = BlockState.Enable;
             SetCurBlockType(this);
         }
 
