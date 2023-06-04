@@ -1,7 +1,7 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
     <ui:Template name="BlockComponentDebug" src="project://database/Assets/Board/UXML/BlockComponentDebug.uxml?fileID=9197481963319205126&amp;guid=ad950f3340bfcaf4da2b912744d89f43&amp;type=3#BlockComponentDebug" />
     <ui:Button text="Reload" display-tooltip-when-elided="true" name="board-debugger__reload-button" style="justify-content: flex-start; align-items: stretch; width: 50px; height: 20px; left: auto;" />
-    <ui:VisualElement name="board-debugger-panel" style="margin-bottom: 0; flex-wrap: nowrap; align-items: stretch; justify-content: flex-start; padding-left: 10px; padding-right: 10px; padding-top: 10px; padding-bottom: 10px;">
+    <ui:VisualElement name="board-debugger-size" style="margin-bottom: 0; flex-wrap: nowrap; align-items: stretch; justify-content: flex-start; padding-left: 0; padding-right: 0; padding-top: 0; padding-bottom: 0; flex-shrink: 0;">
         <ui:Label text="Board Size:" display-tooltip-when-elided="true" name="board-debugger-size__header-label" style="-unity-font-style: bold;" />
         <ui:Label text="rows:" display-tooltip-when-elided="true" name="board-debugger-rows__label" style="flex-direction: row; justify-content: flex-start; align-items: stretch;">
             <ui:Label text="0" display-tooltip-when-elided="true" name="board-debugger-rows__value-label" style="margin-left: 67px; height: 14px; width: 11px;" />
@@ -10,8 +10,10 @@
             <ui:Label text="0" display-tooltip-when-elided="true" name="board-debugger-cols__value-label" style="margin-left: 67px;" />
         </ui:Label>
     </ui:VisualElement>
-    <ui:VisualElement name="board-debugger-body" style="padding-left: 10px; padding-right: 10px; padding-top: 10px; padding-bottom: 10px;">
-        <ui:Label text="Board Data:" display-tooltip-when-elided="true" name="board-debugger-board__header-label" style="-unity-font-style: bold;" />
+    <ui:VisualElement name="board-debugger-board" style="padding-left: 0; padding-right: 0; padding-top: 0; padding-bottom: 0; flex-shrink: 0; flex-grow: 0; flex-basis: 40%;">
+        <ui:Label text="Board Data:" display-tooltip-when-elided="true" name="board-debugger-board__header-label" style="-unity-font-style: bold;">
+            <ui:Label text="[y,x]" display-tooltip-when-elided="true" style="left: 115px;" />
+        </ui:Label>
         <ui:ScrollView name="baord-debugger-board__contents-scrollview" style="flex-direction: column;">
             <ui:VisualElement style="flex-direction: row; justify-content: flex-start; align-items: stretch;">
                 <ui:Instance template="BlockComponentDebug" name="BlockComponentDebug" />
@@ -23,4 +25,27 @@
             </ui:VisualElement>
         </ui:ScrollView>
     </ui:VisualElement>
+    <ui:ScrollView>
+        <ui:VisualElement name="board-debugger-logs" style="margin-left: 0; margin-right: 0; margin-top: 0; margin-bottom: 0; flex-shrink: 0; flex-grow: 0;">
+            <ui:Label text="Match Logs:" display-tooltip-when-elided="true" name="Label" style="-unity-font-style: bold;" />
+            <ui:Button text="Clear" display-tooltip-when-elided="true" name="board-debugger__clear-button" style="justify-content: flex-start; align-items: stretch; width: 50px; height: 20px; left: auto;" />
+            <ui:VisualElement style="flex-direction: row;">
+                <ui:Foldout text="Line One" name="Foldout" style="margin-bottom: 10px; flex-shrink: 0;">
+                    <ui:GroupBox text="log log lgo&#10;lgog&#10;asdfa" name="board-debugger__match-line-one-log-box" style="background-color: rgb(0, 0, 0);" />
+                </ui:Foldout>
+                <ui:Foldout text="Cube" name="Foldout" style="margin-bottom: 10px; flex-shrink: 0; flex-wrap: nowrap; flex-direction: column;">
+                    <ui:GroupBox text="gkjasdklfjlaksd&#10;zxc&#10;zx&#10;c&#10;zxc&#10;zx&#10;c" name="board-debugger__match-line-cube-box" style="background-color: rgb(0, 0, 0);" />
+                </ui:Foldout>
+                <ui:Foldout text="Line Both" name="Foldout" style="margin-bottom: 10px; flex-shrink: 0; flex-wrap: nowrap; flex-direction: column;">
+                    <ui:GroupBox text="gkjasdklfjlaksd&#10;zxc&#10;zx&#10;c&#10;zxc&#10;zx&#10;c" name="board-debugger__match-line-both-log-box" style="background-color: rgb(0, 0, 0);" />
+                </ui:Foldout>
+                <ui:Foldout text="L Shape" name="Foldout" style="margin-bottom: 10px; flex-shrink: 0; flex-wrap: nowrap; flex-direction: column;">
+                    <ui:GroupBox text="gkjasdklfjlaksd&#10;zxc&#10;zx&#10;c&#10;zxc&#10;zx&#10;c" name="board-debugger__match-shape-l-log-box" style="background-color: rgb(0, 0, 0);" />
+                </ui:Foldout>
+                <ui:Foldout text="T Shape" name="Foldout" style="margin-bottom: 10px; flex-shrink: 0; flex-wrap: nowrap; flex-direction: column;">
+                    <ui:GroupBox text="gkjasdklfjlaksd&#10;zxc&#10;zx&#10;c&#10;zxc&#10;zx&#10;c" name="board-debugger__match-shape-t-cube-box" style="background-color: rgb(0, 0, 0);" />
+                </ui:Foldout>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:ScrollView>
 </ui:UXML>

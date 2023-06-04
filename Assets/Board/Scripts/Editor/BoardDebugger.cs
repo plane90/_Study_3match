@@ -2,7 +2,6 @@ using System;
 using Board.Model;
 using Board.Presenter;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -18,29 +17,61 @@ namespace Board.Editor
         
         private const string RowsName = "board-debugger-rows__value-label";
         private const string ColsName = "board-debugger-cols__value-label";
+        private const string MatchLineOneLogName = "board-debugger__match-line-one-log-box";
+        private const string MatchCubeLogName = "board-debugger__match-line-cube-box";
+        private const string MatchLineBothLogName = "board-debugger__match-line-both-log-box";
+        private const string MatchShapeLLogName = "board-debugger__match-shape-l-log-box";
+        private const string MatchShapeTLogName = "board-debugger__match-shape-t-cube-box";
         
         private const string BlockStateBorderName = "block-component-debug__state-border";
         private const string BlockTypeName = "block-component-debug__type";
+        private const string BlockStateLabelName = "block-component-debug__state-label";
+        private const string BlockCoordLabelName = "block-component-debug__coord-label";
 
         private ScrollView _scrollView;
         private Label _rows;
         private Label _cols;
         private Button _reloadButton;
+        private Button _clearButton;
+        private BoardDebuggerLog _matchLineOneLog;
+        private BoardDebuggerLog _matchCubeLog;
+        private BoardDebuggerLog _matchLineBothLog;
+        private BoardDebuggerLog _matchShapeLLog;
+        private BoardDebuggerLog _matchShapeTLog;
 
         private VisualElement[] _rowParents;
-        
+        private static BoardDebugger _instance;
+        private bool _showLog = true;
+
+
         public static void ShowWindow(BoardCtrl boardCtrl)
         {
-            var window = GetWindow<BoardDebugger>();
-            window.titleContent = new GUIContent("Board Debugger");
-            window.position = new Rect(new Vector2(500f, 500f), new Vector2(500f, 500f));
-
-            _boardCtrl = boardCtrl;
-            _boardData = boardCtrl.boardData;
+            if (_instance == null)
+            {
+                _instance = GetWindow<BoardDebugger>();
+                _instance.titleContent = new GUIContent("Board Debugger");
+                _instance.position = new Rect(new Vector2(500f, 500f), new Vector2(500f, 500f));
+                
+            }
+            else
+            {
+                _boardCtrl = boardCtrl;
+                _boardData = _boardCtrl.GetBoardData();
+            }
         }
 
         private void CreateGUI()
         {
+            if (_boardDebuggerTree == null)
+            {
+                Debug.Log("BoardDebuggerLayout.UXML is null");
+                return;
+            }
+            
+            if (_instance == null)
+            {
+                _instance = GetWindow<BoardDebugger>();
+            }
             _boardDebuggerTree.CloneTree(rootVisualElement);
             InitElement();
             InitBoard();
@@ -58,8 +89,24 @@ namespace Board.Editor
             _scrollView.Clear();
             _rows = rootVisualElement.Q<Label>(RowsName);
             _cols = rootVisualElement.Q<Label>(ColsName);
-            _reloadButton = rootVisualElement.Q<Button>();
+            _reloadButton = rootVisualElement.Q<Button>("board-debugger__reload-button");
             _reloadButton.RegisterCallback<ClickEvent>(ReloadGUI);
+            _clearButton = rootVisualElement.Q<Button>("board-debugger__clear-button");
+            _clearButton.RegisterCallback<ClickEvent>(ClearLog);
+            _matchLineOneLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(MatchLineOneLogName));
+            _matchCubeLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(MatchCubeLogName));
+            _matchLineBothLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(MatchLineBothLogName));
+            _matchShapeLLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(MatchShapeLLogName));
+            _matchShapeTLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(MatchShapeTLogName));
+        }
+
+        private void ClearLog(ClickEvent evt)
+        {
+            _matchLineOneLog.Clear();
+            _matchCubeLog.Clear();
+            _matchLineBothLog.Clear();
+            _matchShapeLLog.Clear();
+            _matchShapeTLog.Clear();
         }
 
         private void ReloadGUI(ClickEvent evt)
@@ -72,7 +119,7 @@ namespace Board.Editor
                 return;
             }
 
-            _boardData = _boardCtrl.boardData;
+            _boardData = _boardCtrl.GetBoardData();
             InitElement();
             InitBoard();
         }
@@ -96,6 +143,7 @@ namespace Board.Editor
                     var cell = _blockComponentDebug.Instantiate();
                     SetBlockState(cell, _boardData.BlockDataArray2D[y, x].state);
                     SetBlockType(cell, _boardData.BlockDataArray2D[y, x].currentType);
+                    SetBlockCoord(cell, _boardData.BlockDataArray2D[y, x].array2dIdx);
                     _rowParents[y].Add(cell);
                 }
                 _scrollView.Add(_rowParents[y]);
@@ -110,8 +158,10 @@ namespace Board.Editor
             {
                 for (int x = 0; x < _boardData.Cols; x++)
                 {
-                    SetBlockState((_rowParents[y].ElementAt(x)), _boardData.BlockDataArray2D[y, x].state);
-                    SetBlockType(_rowParents[y].ElementAt(x), _boardData.BlockDataArray2D[y, x].currentType);
+                    var cell = _rowParents[y].ElementAt(x);
+                    SetBlockState(cell, _boardData.BlockDataArray2D[y, x].state);
+                    SetBlockType(cell, _boardData.BlockDataArray2D[y, x].currentType);
+                    SetBlockCoord(cell, _boardData.BlockDataArray2D[y, x].array2dIdx);
                 }
             }
         }
@@ -145,7 +195,91 @@ namespace Board.Editor
             cell.Q(BlockStateBorderName).style.borderLeftColor = color;
             cell.Q(BlockStateBorderName).style.borderTopColor = color;
 
-            cell.Q<Label>().text = state.ToString();
+            cell.Q<Label>(BlockStateLabelName).text = state.ToString();
+        }
+        
+        private void SetBlockCoord(VisualElement cell, BoardVec2 array2dIdx)
+        {
+            cell.Q<Label>(BlockCoordLabelName).text = array2dIdx;
+        }
+
+        public static void Log(string msg, LogType logType)
+        {
+            if (_instance == null || !_instance._showLog)
+                return;
+            switch (logType)
+            {
+                case LogType.FindMatchLineOneSide:
+                    _instance._matchLineOneLog.Log(msg);
+                    break;
+                case LogType.FindMatchCube:
+                    _instance._matchCubeLog.Log(msg);
+                    break;
+                case LogType.FindMatchLineBothSide:
+                    _instance._matchLineBothLog.Log(msg);
+                    break;
+                case LogType.FindMatchL:
+                    _instance._matchShapeLLog.Log(msg);
+                    break;
+                case LogType.FindMatchT:
+                    _instance._matchShapeTLog.Log(msg);
+                    break;
+            }
+        }
+        
+        public static void Indent(LogType logType)
+        {
+            if (_instance == null || !_instance._showLog)
+                return;
+            switch (logType)
+            {
+                case LogType.FindMatchLineOneSide:
+                    _instance._matchLineOneLog.Indent();
+                    break;
+                case LogType.FindMatchCube:
+                    _instance._matchCubeLog.Indent();
+                    break;
+                case LogType.FindMatchLineBothSide:
+                    _instance._matchLineBothLog.Indent();
+                    break;
+                case LogType.FindMatchL:
+                    _instance._matchShapeLLog.Indent();
+                    break;
+                case LogType.FindMatchT:
+                    _instance._matchShapeTLog.Indent();
+                    break;
+            }
+        }
+        
+        public static void Unindent(LogType logType)
+        {
+            if (_instance == null || !_instance._showLog)
+                return;
+            switch (logType)
+            {
+                case LogType.FindMatchLineOneSide:
+                    _instance._matchLineOneLog.Unindent();
+                    break;
+                case LogType.FindMatchCube:
+                    _instance._matchCubeLog.Unindent();
+                    break;
+                case LogType.FindMatchLineBothSide:
+                    _instance._matchLineBothLog.Unindent();
+                    break;
+                case LogType.FindMatchL:
+                    _instance._matchShapeLLog.Unindent();
+                    break;
+                case LogType.FindMatchT:
+                    _instance._matchShapeTLog.Unindent();
+                    break;
+            }
+        }
+
+        public static void ShowLog(bool showLog)
+        {
+            if (_instance == null)
+                return;
+            _instance._showLog = showLog;
         }
     }
 }

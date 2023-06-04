@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using Board.Editor;
 using Board.Model;
 using Board.View;
@@ -18,18 +20,20 @@ namespace Board.Presenter
 
         public int rows, cols;
 
-        public BoardData boardData;
+        private BoardData _boardData;
         private Block[,] _blocks;
         private readonly Dictionary<Block, BlockData> _blockDataMap = new();
         private BoardRectInfo _boarRectInfo;
         private MatchFinder _matchFinder;
 
+        public BoardData GetBoardData() => _boardData;
+        
         public void InitBoardData(BoardData boardData)
         {
-            this.boardData = new BoardData(boardData);
+            _boardData = new BoardData(boardData);
+            _matchFinder = new MatchFinder(_boardData);
             _boarRectInfo = new BoardRectInfo(boardData.Rows, boardData.Cols, _boardRectTransform);
             _blocks = new Block[boardData.Rows, boardData.Cols];
-            _matchFinder = new MatchFinder(boardData);
             
             VerifyBoard();
         }
@@ -37,10 +41,10 @@ namespace Board.Presenter
         [ButtonMethod()]
         public void InitBoardData()
         {
-            boardData = new BoardData(rows, cols);
+            _boardData = new BoardData(rows, cols);
             _boarRectInfo = new BoardRectInfo(rows, cols, _boardRectTransform);
             _blocks = new Block[rows, cols];
-            _matchFinder = new MatchFinder(boardData);
+            _matchFinder = new MatchFinder(_boardData);
             
             VerifyBoard();
         }
@@ -58,12 +62,12 @@ namespace Board.Presenter
         [ButtonMethod()]
         public void CreateBoardAndFillBlock()
         {
-            for (int y = 0; y < boardData.Rows; y++)
+            for (int y = 0; y < _boardData.Rows; y++)
             {
-                for (int x = 0; x < boardData.Cols; x++)
+                for (int x = 0; x < _boardData.Cols; x++)
                 {
                     var idx = new BoardVec2(y, x);
-                    var blockPrefab = boardData.GetCurBlockTypeAt(idx) switch
+                    var blockPrefab = _boardData.GetCurBlockTypeAt(idx) switch
                     {
                         BlockType.Red => _blockRPrefab,
                         BlockType.Green => _blockGPrefab,
@@ -74,7 +78,7 @@ namespace Board.Presenter
 
                     var block = CreateBlock(blockPrefab, idx);
                     block.draggedBlock += OnDraggedBlock;
-                    _blockDataMap[block] = boardData.GetBlockDataAt(idx);
+                    _blockDataMap[block] = _boardData.GetBlockDataAt(idx);
                     _blocks[y, x] = block;
                 }
             }
@@ -106,22 +110,25 @@ namespace Board.Presenter
             var grabbedBlockData = _blockDataMap[grabbedBlock];
             var destIdx = grabbedBlockData.array2dIdx + toDir;
             var destBlock = GetBlockAt(destIdx);
-            var cantSwap = (destBlock == null) ||
-                           !IsSwappableBlock(grabbedBlockData, _blockDataMap[destBlock]);
-            if (cantSwap)
+            
+            if (destBlock == null)
             {
-                UpdateBlockViewCantSwap(grabbedBlock, toDir);
+                UpdateBlockViewOutOfBound(grabbedBlock, toDir);
                 return;
             }
 
-            SwapDataBetween(grabbedBlock, destBlock);
-            UpdateBlockViewSwap(grabbedBlock, destBlock);
+            var destBlockData = _blockDataMap[destBlock];
+            if (!IsSwappableBlock(grabbedBlockData, destBlockData))
+                return;
+
+            SwapDataBetween(grabbedBlockData, destBlockData);
+            UpdateBlockViewSwap(grabbedBlockData, destBlockData);
         }
 
         private Block GetBlockAt(BoardVec2 array2dIdx)
         {
-            if (array2dIdx.Y < 0 || array2dIdx.Y >= boardData.Rows ||
-                array2dIdx.X < 0 || array2dIdx.X >= boardData.Cols)
+            if (array2dIdx.Y < 0 || array2dIdx.Y >= _boardData.Rows ||
+                array2dIdx.X < 0 || array2dIdx.X >= _boardData.Cols)
                 return null;
             return _blocks[array2dIdx.Y, array2dIdx.X];
         }
@@ -131,7 +138,7 @@ namespace Board.Presenter
             blockA.state == BlockState.Enable && blockB.state == BlockState.Enable;
         
         
-        private void UpdateBlockViewCantSwap(Block block, BoardVec2 toDir)
+        private void UpdateBlockViewOutOfBound(Block block, BoardVec2 toDir)
         {
             var worldPos = _boarRectInfo.GetBlockWorldPosAt(_blockDataMap[block].array2dIdx);
             if (block.transform.position != worldPos)
@@ -143,60 +150,123 @@ namespace Board.Presenter
             });
         }
 
-        private void SwapDataBetween(Block blockA, Block blockB)
+        private void SwapDataBetween(BlockData blockDataA, BlockData blockDataB)
         {
-            var idxA = _blockDataMap[blockA].array2dIdx;
-            var idxB = _blockDataMap[blockB].array2dIdx;
+            _boardData.SetBlockDataAt(blockDataA.array2dIdx, blockDataB);
+            _boardData.SetBlockDataAt(blockDataB.array2dIdx, blockDataA);
 
-            boardData.SetBlockDataAt(idxA, _blockDataMap[blockB]);
-            boardData.SetBlockDataAt(idxB, _blockDataMap[blockA]);
+            (blockDataA.array2dIdx, blockDataB.array2dIdx) = (blockDataB.array2dIdx, blockDataA.array2dIdx);
+        }
 
-            SetBlocksAt(idxA, blockB);
-            SetBlocksAt(idxB, blockA);
-
-            (_blockDataMap[blockA].array2dIdx, _blockDataMap[blockB].array2dIdx) = (idxB, idxA);
+        private void UpdateBlockViewSwap(BlockData blockDataA, BlockData blockDataB, bool cancelSwap = false)
+        {
+            blockDataA.state = BlockState.Updating;
+            blockDataB.state = BlockState.Updating;
             
-            _blockDataMap[blockA].state = BlockState.Updating;
-            _blockDataMap[blockB].state = BlockState.Updating;
+            var blockA = GetBlockAt(blockDataB.array2dIdx);
+            var blockB = GetBlockAt(blockDataA.array2dIdx);
+            SetBlocksAt(blockDataA.array2dIdx, blockA);
+            SetBlocksAt(blockDataB.array2dIdx, blockB);
+
+            blockA.name = blockDataA.array2dIdx;
+            blockB.name = blockDataB.array2dIdx;
+
+            var posA = _boarRectInfo.GetBlockWorldPosAt(blockDataA.array2dIdx); 
+            var posB = _boarRectInfo.GetBlockWorldPosAt(blockDataB.array2dIdx); 
+            var seq = DOTween.Sequence();
+            seq.Join(blockA.transform.DOMove(posA, 0.5f)).
+                Join(blockB.transform.DOMove(posB, 0.5f)).
+                OnComplete(OnSwappedDone(blockDataA, blockDataB, cancelSwap));
         }
 
         private void SetBlocksAt(BoardVec2 array2dIdx, Block block) => _blocks[array2dIdx.Y, array2dIdx.X] = block;
 
-        private void UpdateBlockViewSwap(Block blockA, Block blockB, bool cancelSwap = false)
-        {
-            var idxA = _blockDataMap[blockA].array2dIdx;
-            var idxB = _blockDataMap[blockB].array2dIdx;
-
-            blockA.name = idxA;
-            blockB.name = idxB;
-
-            var posA = _boarRectInfo.GetBlockWorldPosAt(idxA); 
-            var posB = _boarRectInfo.GetBlockWorldPosAt(idxB); 
-            var seq = DOTween.Sequence();
-            seq.Join(blockA.transform.DOMove(posA, 0.5f)).
-                Join(blockB.transform.DOMove(posB, 0.5f)).
-                OnComplete(OnSwappedDone(blockA, blockB, cancelSwap));
-        }
-
-        private TweenCallback OnSwappedDone(Block blockA, Block blockB, bool cancelSwap) =>
+        private TweenCallback OnSwappedDone(BlockData blockDataA, BlockData blockDataB, bool cancelSwap) =>
             () =>
             {
-                _blockDataMap[blockA].state = BlockState.Enable;
-                _blockDataMap[blockB].state = BlockState.Enable;
+                blockDataA.state = blockDataB.state = BlockState.Enable;
                 if (cancelSwap)
                     return;
-                var matchedBlocksData = _matchFinder.GetMatchedBlocksData();
-                if (matchedBlocksData.Count > 0)
-                {
-                    foreach (var blockData in matchedBlocksData)
-                    {
-                        blockData.state = BlockState.Disable;
-                    }
+                var hasMatch = CheckMatch(blockDataA) | CheckMatch(blockDataB);
+                if (hasMatch)
                     return;
-                }
 
-                SwapDataBetween(blockA, blockB);
-                UpdateBlockViewSwap(blockA, blockB, true);
+                SwapDataBetween(blockDataA, blockDataB);
+                UpdateBlockViewSwap(blockDataA, blockDataB, true);
             };
+
+        private bool CheckMatch(BlockData blockData)
+        {
+            bool isMatch = false;
+            if (_matchFinder.IsMatchAt(blockData, out var matches))
+            {
+                isMatch = true;
+                foreach (var matchedBlockData in matches)
+                {
+                    matchedBlockData.state = BlockState.Disable;
+                    GetBlockAt(matchedBlockData.array2dIdx).gameObject.SetActive(false);
+                }
+            }
+            return isMatch;
+        }
+
+        private void ApplyGravity()
+        {
+            for (int x = 0; x < _boardData.Cols; x++)
+            {
+                for (int y = _boardData.Rows - 1; y >= 0; y--)
+                {
+                    var curBlockData = _boardData.BlockDataArray2D[y, x];
+                    if (!IsDisableBlockData(curBlockData)) 
+                        continue;
+                    Debug.Log($"Disable Block Data Found, {y},{x}");
+                    //yield return new WaitForSeconds(1.0f);
+                    for (int ny = y - 1; ny >= 0; ny--)
+                    {
+                        var idxNext = new BoardVec2(ny, x);
+                        var nextBlockData = _boardData.GetBlockDataAt(idxNext);
+                        if (!IsGravityTarget(nextBlockData))
+                            continue;
+                        Debug.Log($"Gravity Target Block Data Found, {ny},{x}");
+                        //yield return new WaitForSeconds(1.0f);
+                        SwapDataBetween(curBlockData, nextBlockData);
+                        UpdateBlockViewGravity(curBlockData, nextBlockData);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void UpdateBlockViewGravity(BlockData fromData, BlockData toData)
+        {
+            Debug.Log($"From: {fromData.array2dIdx}, to: {toData.array2dIdx}");
+            var fromBlock = GetBlockAt(fromData.array2dIdx);
+            var toBlock = GetBlockAt(toData.array2dIdx);
+            SetBlocksAt(fromData.array2dIdx, toBlock);
+            SetBlocksAt(toData.array2dIdx, fromBlock);
+            
+            fromBlock.name = fromData.array2dIdx;
+            toData.state = BlockState.Updating;
+            fromBlock.transform.DOMove(_boarRectInfo.GetBlockWorldPosAt(toData.array2dIdx), 0.5f).OnComplete((() =>
+            {
+                if (toData.state == BlockState.Disable)
+                    return;
+                toData.state = BlockState.Enable;
+                CheckMatch(fromData);
+                CheckMatch(toData);
+            }));
+        }
+
+        private static bool IsDisableBlockData(BlockData nextBlockData)
+        {
+            return nextBlockData.currentType != BlockType.None &&
+                   nextBlockData.state == BlockState.Disable;
+        }
+
+        private static bool IsGravityTarget(BlockData blockData)
+        {
+            return blockData.currentType != BlockType.None &&
+                   blockData.state != BlockState.Disable;
+        }
     }
 }
