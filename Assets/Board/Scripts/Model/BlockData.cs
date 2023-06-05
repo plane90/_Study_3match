@@ -11,7 +11,7 @@ namespace Board.Model
     
     public enum BlockState
     {
-        Disable, Enable, Updating, Ready,
+        Disable, Enable, Updating, Wait,
     }
     
     [System.Serializable]

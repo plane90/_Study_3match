@@ -5,7 +5,7 @@ namespace Board.Editor
 {
     public enum LogType
     {
-        FindMatchLineOneSide, FindMatchCube, FindMatchLineBothSide, FindMatchL, FindMatchT
+        FindMatchLineOneSide, FindMatchCube, FindMatchLineBothSide, FindMatchL, FindMatchT, Disable
     }
     
     public class BoardDebuggerLog

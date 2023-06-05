@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using Board.Model;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -12,12 +10,75 @@ namespace Board.View
         private RectTransform _rectTransform;
         private Vector2 _dragStartPos;
         private bool _isDragged;
+        private Vector3 _anchorPosDest;
+        private bool _isDrop = false;
+        private readonly float _initVelocity = -100f;
+        private float _velocity;
+        private readonly float _gravity = -50f;
 
         public Action<Block, BoardVec2> draggedBlock;
+        public Action<Block> droppedBlock;
+
+        [MyBox.ButtonMethod()]
+        public void Test()
+        {
+            _isDrop = !_isDrop;
+        }
 
         private void Awake()
         {
             _rectTransform = GetComponent<RectTransform>();
+        }
+
+        public void HideAt(Vector2 pos)
+        {
+            _rectTransform.anchoredPosition = pos;
+            this.enabled = false;
+        }
+
+        public void Show()
+        {
+            _rectTransform.localScale = Vector3.one;
+            this.enabled = true;
+        }
+
+        public void SetLooks(Color color)
+        {
+            GetComponent<Image>().color = color;
+        }
+
+        public void Drop(Vector3 anchorPosDest)
+        {
+            _anchorPosDest = anchorPosDest;
+            _isDrop = true;
+        }
+
+        public void Stop()
+        {
+            _isDrop = false;
+            _velocity = _initVelocity;
+        }
+
+        private void Update()
+        {
+            if (!_isDrop)
+                return;
+
+            ApplyGravity();
+        }
+
+        private void ApplyGravity()
+        {
+            _velocity += _gravity * Time.fixedDeltaTime;
+
+            _rectTransform.anchoredPosition += new Vector2(0f, _velocity * Time.fixedDeltaTime);
+
+            if (Mathf.Abs(_anchorPosDest.y - _rectTransform.anchoredPosition.y) < 10.0f)
+            {
+                _isDrop = false;
+                _rectTransform.anchoredPosition = _anchorPosDest;
+                droppedBlock?.Invoke(this);
+            }
         }
 
         public void OnPointerDown(PointerEventData eventData)

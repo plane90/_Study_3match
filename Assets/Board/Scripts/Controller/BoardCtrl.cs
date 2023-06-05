@@ -1,12 +1,14 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.Collections.Generic;
+using System.Linq;
 using Board.Editor;
 using Board.Model;
 using Board.View;
 using DG.Tweening;
 using MyBox;
 using UnityEngine;
+using UnityEngine.Assertions;
+using LogType = Board.Editor.LogType;
+using Random = UnityEngine.Random;
 
 namespace Board.Presenter
 {
@@ -25,7 +27,8 @@ namespace Board.Presenter
         private readonly Dictionary<Block, BlockData> _blockDataMap = new();
         private BoardRectInfo _boarRectInfo;
         private MatchFinder _matchFinder;
-
+        [SerializeField] private RectTransform rect;
+        
         public BoardData GetBoardData() => _boardData;
         
         public void InitBoardData(BoardData boardData)
@@ -78,6 +81,7 @@ namespace Board.Presenter
 
                     var block = CreateBlock(blockPrefab, idx);
                     block.draggedBlock += OnDraggedBlock;
+                    block.droppedBlock += OnDroppedBlock;
                     _blockDataMap[block] = _boardData.GetBlockDataAt(idx);
                     _blocks[y, x] = block;
                 }
@@ -91,6 +95,25 @@ namespace Board.Presenter
             {
                 DestroyImmediate(_boardRectTransform.GetChild(i).gameObject);
             }
+        }
+        
+        [ButtonMethod()]
+        public void ResetAndRecreateBoard()
+        {
+            Reset();
+            InitBoardData();
+            CreateBoardAndFillBlock();
+        }
+        
+        [ButtonMethod()]
+        public void OpenBoardDebugger()
+        {
+            BoardDebugger.ShowWindow(this);
+        }
+
+        [ButtonMethod()]
+        public void Test()
+        {
         }
 
         private Block CreateBlock(GameObject blockPrefab, BoardVec2 array2dIdx)
@@ -121,7 +144,7 @@ namespace Board.Presenter
             if (!IsSwappableBlock(grabbedBlockData, destBlockData))
                 return;
 
-            SwapDataBetween(grabbedBlockData, destBlockData);
+            SetDataSwap(grabbedBlockData, destBlockData);
             UpdateBlockViewSwap(grabbedBlockData, destBlockData);
         }
 
@@ -135,7 +158,8 @@ namespace Board.Presenter
 
         private bool IsSwappableBlock(BlockData blockA, BlockData blockB) =>
             blockA.currentType != BlockType.None && blockB.currentType != BlockType.None &&
-            blockA.state == BlockState.Enable && blockB.state == BlockState.Enable;
+            blockA.state != BlockState.Disable && blockB.state != BlockState.Disable &&
+            blockA.state != BlockState.Updating && blockB.state != BlockState.Updating;
         
         
         private void UpdateBlockViewOutOfBound(Block block, BoardVec2 toDir)
@@ -150,12 +174,27 @@ namespace Board.Presenter
             });
         }
 
-        private void SwapDataBetween(BlockData blockDataA, BlockData blockDataB)
+        private void SetDataSwap(BlockData blockDataA, BlockData blockDataB)
         {
-            _boardData.SetBlockDataAt(blockDataA.array2dIdx, blockDataB);
-            _boardData.SetBlockDataAt(blockDataB.array2dIdx, blockDataA);
+            var prevA = blockDataA.array2dIdx;
+            var prevB = blockDataB.array2dIdx;
+            
+            (blockDataA.array2dIdx, blockDataB.array2dIdx) = (prevB, prevA);
+            _boardData.SetBlockDataAt(prevA, blockDataB);
+            _boardData.SetBlockDataAt(prevB, blockDataA);
 
-            (blockDataA.array2dIdx, blockDataB.array2dIdx) = (blockDataB.array2dIdx, blockDataA.array2dIdx);
+            Assert.IsTrue(blockDataA.array2dIdx == prevB);
+            Assert.IsTrue(blockDataB.array2dIdx == prevA);
+            Assert.IsTrue(_boardData.GetBlockDataAt(prevA) == blockDataB);
+            Assert.IsTrue(_boardData.GetBlockDataAt(prevB) == blockDataA);
+
+            var blockA = GetBlockAt(prevA);
+            var blockB = GetBlockAt(prevB);
+            SetBlocksAt(prevA, blockB);
+            SetBlocksAt(prevB, blockA);
+            
+            Assert.IsTrue(GetBlockAt(prevA) == blockB);
+            Assert.IsTrue(GetBlockAt(prevB) == blockA);
         }
 
         private void UpdateBlockViewSwap(BlockData blockDataA, BlockData blockDataB, bool cancelSwap = false)
@@ -163,10 +202,8 @@ namespace Board.Presenter
             blockDataA.state = BlockState.Updating;
             blockDataB.state = BlockState.Updating;
             
-            var blockA = GetBlockAt(blockDataB.array2dIdx);
-            var blockB = GetBlockAt(blockDataA.array2dIdx);
-            SetBlocksAt(blockDataA.array2dIdx, blockA);
-            SetBlocksAt(blockDataB.array2dIdx, blockB);
+            var blockA = GetBlockAt(blockDataA.array2dIdx);
+            var blockB = GetBlockAt(blockDataB.array2dIdx);
 
             blockA.name = blockDataA.array2dIdx;
             blockB.name = blockDataB.array2dIdx;
@@ -187,86 +224,184 @@ namespace Board.Presenter
                 blockDataA.state = blockDataB.state = BlockState.Enable;
                 if (cancelSwap)
                     return;
-                var hasMatch = CheckMatch(blockDataA) | CheckMatch(blockDataB);
+                var hasMatch = CheckMatchAndDisable(blockDataA) | CheckMatchAndDisable(blockDataB);
                 if (hasMatch)
                     return;
 
-                SwapDataBetween(blockDataA, blockDataB);
+                SetDataSwap(blockDataA, blockDataB);
                 UpdateBlockViewSwap(blockDataA, blockDataB, true);
             };
 
-        private bool CheckMatch(BlockData blockData)
+        private bool CheckMatchAndDisable(BlockData blockData)
         {
             bool isMatch = false;
-            if (_matchFinder.IsMatchAt(blockData, out var matches))
+            if (_matchFinder.IsMatchAt(blockData, out var matchedBlocksData))
             {
                 isMatch = true;
-                foreach (var matchedBlockData in matches)
+                if (matchedBlocksData.Any((x) => x.state == BlockState.Updating))
                 {
-                    matchedBlockData.state = BlockState.Disable;
-                    GetBlockAt(matchedBlockData.array2dIdx).gameObject.SetActive(false);
+                    matchedBlocksData.
+                        Where((x) => x.state == BlockState.Enable).
+                        ForEach((x) => x.state = BlockState.Wait);
+                }
+                else
+                {
+                    UpdateBlockViewDisable(matchedBlocksData);
                 }
             }
             return isMatch;
         }
 
-        private void ApplyGravity()
+        private void UpdateBlockViewDisable(IEnumerable<BlockData> toDisableData)
         {
+            var seq = DOTween.Sequence();
+            seq.Pause();
+            BoardDebugger.Log($"Disable At {toDisableData.First().array2dIdx}", LogType.Disable);
+            foreach (var blockData in toDisableData)
+            {
+                blockData.state = BlockState.Updating;
+                seq.Join(GetBlockAt(blockData.array2dIdx).transform.DOScale(Vector3.zero, 0.2f));
+            }
+            seq.OnComplete(OnDisableDone(toDisableData));
+            seq.Play();
+        }
+
+        private TweenCallback OnDisableDone(IEnumerable<BlockData> disabledData) =>
+            () =>
+            {
+                BoardDebugger.Log($"Disable Done {disabledData.First().array2dIdx}", LogType.Disable);
+                disabledData.ForEach((x) => x.state = BlockState.Disable);
+                HideDisabledBlockAndDropOrPopulate();
+            };
+
+        private void HideDisabledBlockAndDropOrPopulate()
+        {
+            BoardDebugger.Indent(LogType.Disable);
             for (int x = 0; x < _boardData.Cols; x++)
             {
+                int levelCnt = 0;
+                BlockData prevDisabled = null;
                 for (int y = _boardData.Rows - 1; y >= 0; y--)
                 {
-                    var curBlockData = _boardData.BlockDataArray2D[y, x];
-                    if (!IsDisableBlockData(curBlockData)) 
+                    var disabled = _boardData.BlockDataArray2D[y, x];
+                    if (!IsDisableBlockData(disabled)) 
                         continue;
-                    Debug.Log($"Disable Block Data Found, {y},{x}");
-                    //yield return new WaitForSeconds(1.0f);
-                    for (int ny = y - 1; ny >= 0; ny--)
+                    
+                    if (prevDisabled != null && prevDisabled != disabled)
+                        levelCnt++;
+                    var idxTop = new BoardVec2(-1 - levelCnt, disabled.array2dIdx.X);
+                    GetBlockAt(disabled.array2dIdx).HideAt(_boarRectInfo.GetBlockAnchoredPosAt(idxTop));
+                    prevDisabled = disabled;
+                    
+                    Debug.Log(idxTop);
+                    
+                    if (FindDropTargetData(y - 1, x, out var toDrop, out var isUpdating))
                     {
-                        var idxNext = new BoardVec2(ny, x);
-                        var nextBlockData = _boardData.GetBlockDataAt(idxNext);
-                        if (!IsGravityTarget(nextBlockData))
-                            continue;
-                        Debug.Log($"Gravity Target Block Data Found, {ny},{x}");
-                        //yield return new WaitForSeconds(1.0f);
-                        SwapDataBetween(curBlockData, nextBlockData);
-                        UpdateBlockViewGravity(curBlockData, nextBlockData);
-                        break;
+                        SetDataSwap(disabled, toDrop);
+                        UpdateBlockViewDrop(toDrop);
+                        BoardDebugger.Log($"Drop At {toDrop.array2dIdx}", LogType.Disable);
+                    }
+                    else
+                    {
+                        if (isUpdating)
+                            break;
+                        SetDataPopulate(disabled);
+                        UpdateBlockViewPopulated(disabled);
+                        BoardDebugger.Log($"Pop At {disabled.array2dIdx}", LogType.Disable);
                     }
                 }
+                BoardDebugger.Log($"", LogType.Disable);
             }
+            BoardDebugger.Unindent(LogType.Disable);
         }
 
-        private void UpdateBlockViewGravity(BlockData fromData, BlockData toData)
+        private static bool IsDisableBlockData(BlockData blockData) =>
+            blockData.currentType != BlockType.None &&
+            blockData.state == BlockState.Disable;
+
+        private bool FindDropTargetData(int idxRow, int idxCol, out BlockData toDropBlockData, out bool isUpdating)
         {
-            Debug.Log($"From: {fromData.array2dIdx}, to: {toData.array2dIdx}");
-            var fromBlock = GetBlockAt(fromData.array2dIdx);
-            var toBlock = GetBlockAt(toData.array2dIdx);
-            SetBlocksAt(fromData.array2dIdx, toBlock);
-            SetBlocksAt(toData.array2dIdx, fromBlock);
-            
-            fromBlock.name = fromData.array2dIdx;
-            toData.state = BlockState.Updating;
-            fromBlock.transform.DOMove(_boarRectInfo.GetBlockWorldPosAt(toData.array2dIdx), 0.5f).OnComplete((() =>
+            for (int y = idxRow; y >= 0; y--)
             {
-                if (toData.state == BlockState.Disable)
-                    return;
-                toData.state = BlockState.Enable;
-                CheckMatch(fromData);
-                CheckMatch(toData);
-            }));
+                var nextPos = new BoardVec2(y, idxCol);
+                toDropBlockData = _boardData.GetBlockDataAt(nextPos);
+                if (toDropBlockData.state == BlockState.Updating)
+                {
+                    isUpdating = true;
+                    return false;
+                }
+
+                if (!IsDropTarget(toDropBlockData))
+                    continue;
+
+                isUpdating = false;
+                return true;
+            }
+        
+            toDropBlockData = null;
+            isUpdating = false;
+            return false;
         }
 
-        private static bool IsDisableBlockData(BlockData nextBlockData)
+        private static bool IsDropTarget(BlockData blockData) =>
+            blockData.currentType != BlockType.None &&
+            blockData.state != BlockState.Disable;
+
+        private void UpdateBlockViewDrop(BlockData toDropData)
         {
-            return nextBlockData.currentType != BlockType.None &&
-                   nextBlockData.state == BlockState.Disable;
+            var toDropBlock = GetBlockAt(toDropData.array2dIdx);
+            
+            toDropBlock.name = toDropData.array2dIdx;
+            toDropData.state = BlockState.Updating;
+            toDropBlock.Drop(_boarRectInfo.GetBlockAnchoredPosAt(toDropData.array2dIdx));
         }
 
-        private static bool IsGravityTarget(BlockData blockData)
+        private void OnDroppedBlock(Block droppedBlock)
         {
-            return blockData.currentType != BlockType.None &&
-                   blockData.state != BlockState.Disable;
+            var dropped = _blockDataMap[droppedBlock];
+            bool found = false;
+            for (int y = dropped.array2dIdx.Y; y < _boardData.Rows; y++)
+            {
+                var nextPos = new BoardVec2(y, dropped.array2dIdx.X);
+                var disabled = _boardData.GetBlockDataAt(nextPos);
+                if (disabled.state != BlockState.Disable)
+                    continue;
+                SetDataSwap(dropped, disabled);
+                UpdateBlockViewDrop(dropped);
+                found = true;
+            }
+            
+            if (found)
+                return;
+            droppedBlock.Stop();
+            BoardDebugger.Log($"drop done {dropped.array2dIdx}", LogType.Disable);
+            dropped.state = BlockState.Enable;
+            CheckMatchAndDisable(dropped);
+            HideDisabledBlockAndDropOrPopulate();
+        }
+
+        private void SetDataPopulate(BlockData toPopulateBlockData)
+        {
+            toPopulateBlockData.currentType = (BlockType)Random.Range((int)BlockType.Red, (int)BlockType.End);
+        }
+        
+        private void UpdateBlockViewPopulated(BlockData populated)
+        {
+            var populatedBlock = GetBlockAt(populated.array2dIdx);
+            var color = populated.currentType switch
+            {
+                BlockType.Red => Color.red,
+                BlockType.Green => Color.green,
+                BlockType.Blue => Color.blue,
+                BlockType.Yellow => Color.yellow,
+                _ => Color.white
+            };
+            populatedBlock.SetLooks(color);
+            populatedBlock.Show();
+
+            populatedBlock.name = populated.array2dIdx;
+            populated.state = BlockState.Updating;
+            populatedBlock.Drop(_boarRectInfo.GetBlockAnchoredPosAt(populated.array2dIdx));
         }
     }
 }

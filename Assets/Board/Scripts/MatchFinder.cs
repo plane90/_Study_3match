@@ -1,10 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Board.Editor;
 using Board.Model;
-using MyBox;
-using UnityEngine;
 using LogType = Board.Editor.LogType;
 
 namespace Board
@@ -44,43 +41,54 @@ namespace Board
             return _visited;
         }
         
-        public bool IsMatchAt(BlockData blockData, out HashSet<BlockData> matches)
+        public bool IsMatchAt(BlockData blockData, out HashSet<BlockData> resultMatchedBlockData)
         {
-            matches = new HashSet<BlockData>();
-            var matchShapes = new List<MatchShape>();
+            resultMatchedBlockData = new HashSet<BlockData>();
+            var candidatesMatchShape = new List<MatchShape>();
+            /*
+             * O O X O
+             */
             if (FindMatchLineOneSide(blockData, out var matchLineOneSide))
             {
-                matchShapes.Add(matchLineOneSide);
+                candidatesMatchShape.Add(matchLineOneSide);
                 /*
                  *   O
                  *   O
                  * O X O O
                  */
-                FindMatchShapeOf(blockData, MatchShape.GetShapeMasksL(), ref matchShapes, LogType.FindMatchL);
+                FindMatchShapeOf(blockData, MatchShape.GetShapeMasksL(), ref candidatesMatchShape, LogType.FindMatchL);
             }
 
+            /*
+             * O X O O
+             *   O
+             */
             if (FindMatchLineBothSide(blockData, out var matchLineBothSide))
             {
-                matchShapes.Add(matchLineBothSide);
+                candidatesMatchShape.Add(matchLineBothSide);
                 /*
                  *   O
                  * O X O
                  *   O
                  *   O
                  */
-                FindMatchShapeOf(blockData, MatchShape.GetShapeMasksT(), ref matchShapes, LogType.FindMatchT);
+                FindMatchShapeOf(blockData, MatchShape.GetShapeMasksT(), ref candidatesMatchShape, LogType.FindMatchT);
             }
 
+            /*
+             * O O
+             * O X O
+             */
             if (FindMatchCube(blockData, out var matchCube))
-                matchShapes.Add(matchCube);
+                candidatesMatchShape.Add(matchCube);
 
-            if (matchShapes.Count == 0)
+            if (candidatesMatchShape.Count == 0)
             {
-                matches = null;
+                resultMatchedBlockData = null;
                 return false;
             }
 
-            var highValueShape = matchShapes.OrderBy((x) => x.value).Last();
+            var highValueShape = candidatesMatchShape.OrderBy((x) => x.value).Last();
             var logType = highValueShape.shapeType switch
             {
                 ShapeType.L => LogType.FindMatchL,
@@ -93,7 +101,7 @@ namespace Board
             BoardDebugger.Log("high value", logType);
             foreach (var coord in highValueShape.shapeMask.coord)
             {
-                matches.Add(_boardData.GetBlockDataAt(coord));
+                resultMatchedBlockData.Add(_boardData.GetBlockDataAt(coord));
             }
             return true;
         }
@@ -101,7 +109,7 @@ namespace Board
         private void FindMatchShapeOf(BlockData blockData, List<ShapeMask> shapeMasks, ref List<MatchShape> matchShapes, LogType logType)
         {
             BoardDebugger.Log(blockData.array2dIdx, logType);
-            BoardDebugger.Log("-----", logType);
+            BoardDebugger.Indent(logType);
             foreach (var shapeMask in shapeMasks)
             {
                 bool isMatch = true;
@@ -110,7 +118,7 @@ namespace Board
                     var nextPos = blockData.array2dIdx + nextCoord;
                     BoardDebugger.Log(nextPos, logType);
                     if (!IsOutOfBound(nextPos) &&
-                        _boardData.GetBlockStateAt(nextPos) == BlockState.Enable &&
+                        _boardData.GetBlockStateAt(nextPos) != BlockState.Disable &&
                         _boardData.GetCurBlockTypeAt(nextPos) == blockData.currentType)
                         continue;
 
@@ -121,14 +129,16 @@ namespace Board
                 if (isMatch)
                 {
                     BoardDebugger.Log("match !", logType);
-                    var coord = CloneCoord(blockData, shapeMask);
+                    BoardDebugger.Unindent(logType);
+                    var coord = GetAppliedShapeMask(blockData, shapeMask);
                     matchShapes.Add(new MatchShape(new ShapeMask(coord), logType == LogType.FindMatchL ? ShapeType.L : ShapeType.T));
                 }
             }
             BoardDebugger.Log("no match", logType);
+            BoardDebugger.Unindent(logType);
         }
 
-        private static BoardVec2[] CloneCoord(BlockData blockData, ShapeMask shapeMask)
+        private static BoardVec2[] GetAppliedShapeMask(BlockData blockData, ShapeMask shapeMask)
         {
             var coord = new BoardVec2[1 + shapeMask.coord.Length];
             for (int i = 0; i < shapeMask.coord.Length; i++)
@@ -147,7 +157,6 @@ namespace Board
             foreach (var dir in Directions)
             {
                 BoardDebugger.Log(blockData.array2dIdx, LogType.FindMatchLineOneSide);
-                BoardDebugger.Log("-----", LogType.FindMatchLineOneSide);
                 BoardDebugger.Indent(LogType.FindMatchLineOneSide);
                 bool isMatch = true;
                 
@@ -157,7 +166,7 @@ namespace Board
                     BoardDebugger.Log(nextPos, LogType.FindMatchLineOneSide);
                     
                     if (!IsOutOfBound(nextPos) && 
-                        _boardData.GetBlockStateAt(nextPos) == BlockState.Enable &&
+                        _boardData.GetBlockStateAt(nextPos) != BlockState.Disable &&
                         _boardData.GetCurBlockTypeAt(nextPos) == blockData.currentType)
                         continue;
                     
@@ -186,28 +195,25 @@ namespace Board
         }
 
         /*
-         * O X O
+         * O X O O
          *   O
          */
         private bool FindMatchLineBothSide(BlockData blockData, out MatchShape matchShape)
         {
             BoardDebugger.Log(blockData.array2dIdx, LogType.FindMatchLineBothSide);
-            BoardDebugger.Log("-----", LogType.FindMatchLineBothSide);
+            BoardDebugger.Indent(LogType.FindMatchLineBothSide);
             
             var horizontalMatches = new List<BoardVec2>();
             horizontalMatches.Add(blockData.array2dIdx);
             FindMatchToward(blockData, BoardVec2.left, ref horizontalMatches);
-            BoardDebugger.Log("", LogType.FindMatchLineBothSide);
             FindMatchToward(blockData, BoardVec2.right, ref horizontalMatches);
-            BoardDebugger.Log("", LogType.FindMatchLineBothSide);
             
             
             var verticalMatches = new List<BoardVec2>();
             verticalMatches.Add(blockData.array2dIdx);
             FindMatchToward(blockData, BoardVec2.up, ref verticalMatches);
-            BoardDebugger.Log("", LogType.FindMatchLineBothSide);
             FindMatchToward(blockData, BoardVec2.down, ref verticalMatches);
-            BoardDebugger.Log("", LogType.FindMatchLineBothSide);
+            BoardDebugger.Unindent(LogType.FindMatchLineBothSide);
 
             if (horizontalMatches.Count < 3 && verticalMatches.Count < 3)
             {
@@ -231,13 +237,13 @@ namespace Board
                 var nextPos = blockData.array2dIdx + dir * i;
                 BoardDebugger.Log(nextPos, LogType.FindMatchLineBothSide);
                 if (IsOutOfBound(nextPos) ||
-                    _boardData.GetBlockStateAt(nextPos) != BlockState.Enable ||
+                    _boardData.GetBlockStateAt(nextPos) == BlockState.Disable ||
                     _boardData.GetCurBlockTypeAt(nextPos) != blockData.currentType)
                     return;
                 matches.Add(nextPos);
             }
         }
-
+        
         /*
          * O O
          * O X O
@@ -247,7 +253,6 @@ namespace Board
             foreach (var shapeMask in MatchShape.GetShapeMasksCube())
             {
                 BoardDebugger.Log(blockData.array2dIdx, LogType.FindMatchCube);
-                BoardDebugger.Log("-----", LogType.FindMatchCube);
                 BoardDebugger.Indent(LogType.FindMatchCube);
                 bool isMatch = true;
                 foreach (var nextCoord in shapeMask.coord)
@@ -256,7 +261,7 @@ namespace Board
                     BoardDebugger.Log(nextPos, LogType.FindMatchCube);
                     
                     if (!IsOutOfBound(nextPos) && 
-                        _boardData.GetBlockStateAt(nextPos) == BlockState.Enable &&
+                        _boardData.GetBlockStateAt(nextPos) != BlockState.Disable &&
                         _boardData.GetCurBlockTypeAt(nextPos) == blockData.currentType)
                         continue;
                     
@@ -269,7 +274,7 @@ namespace Board
                     continue;
                 
                 BoardDebugger.Log("match !", LogType.FindMatchCube);
-                var coord = CloneCoord(blockData, shapeMask);
+                var coord = GetAppliedShapeMask(blockData, shapeMask);
                 matchShape = new MatchShape(new ShapeMask(coord), ShapeType.Cube);
                 return true;
             }
@@ -293,9 +298,7 @@ namespace Board
                     _boardData.GetBlockStateAt(nextPos) != BlockState.Enable ||
                     _boardData.GetCurBlockTypeAt(nextPos) != blockData.currentType ||
                     _visited.Contains(_boardData.GetBlockDataAt(nextPos)))
-                {
                     continue;
-                }
                 TraverseDfs(_boardData.GetBlockDataAt(nextPos));
             }
         }
