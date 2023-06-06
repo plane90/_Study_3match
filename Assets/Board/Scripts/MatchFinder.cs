@@ -44,7 +44,7 @@ namespace Board
         public bool IsMatchAt(BlockData blockData, out HashSet<BlockData> resultMatchedBlockData)
         {
             resultMatchedBlockData = new HashSet<BlockData>();
-            var candidatesMatchShape = new List<MatchShape>();
+            var candidatesMatchShape = new HashSet<MatchShape>();
             /*
              * O O X O
              */
@@ -105,8 +105,70 @@ namespace Board
             }
             return true;
         }
+        
+        public bool IsMatchAt(BoardVec2 array2dIdx, out HashSet<MatchShape> resultMatchShapes)
+        {
+            resultMatchShapes = new HashSet<MatchShape>();
+            var blockData = _boardData.GetBlockDataAt(array2dIdx);
+            
+            /*
+             * O O X O
+             */
+            if (FindMatchLineOneSide(blockData, out var matchLineOneSide))
+            {
+                resultMatchShapes.Add(matchLineOneSide);
+                /*
+                 *   O
+                 *   O
+                 * O X O O
+                 */
+                FindMatchShapeOf(blockData, MatchShape.GetShapeMasksL(), ref resultMatchShapes, LogType.FindMatchL);
+            }
 
-        private void FindMatchShapeOf(BlockData blockData, List<ShapeMask> shapeMasks, ref List<MatchShape> matchShapes, LogType logType)
+            /*
+             * O X O O
+             *   O
+             */
+            if (FindMatchLineBothSide(blockData, out var matchLineBothSide))
+            {
+                resultMatchShapes.Add(matchLineBothSide);
+                /*
+                 *   O
+                 * O X O
+                 *   O
+                 *   O
+                 */
+                FindMatchShapeOf(blockData, MatchShape.GetShapeMasksT(), ref resultMatchShapes, LogType.FindMatchT);
+            }
+
+            /*
+             * O O
+             * O X O
+             */
+            if (FindMatchCube(blockData, out var matchCube))
+                resultMatchShapes.Add(matchCube);
+
+            if (resultMatchShapes.Count == 0)
+            {
+                resultMatchShapes = null;
+                return false;
+            }
+
+            var highValueShape = resultMatchShapes.OrderBy((x) => x.value).Last();
+            var logType = highValueShape.shapeType switch
+            {
+                ShapeType.L => LogType.FindMatchL,
+                ShapeType.T => LogType.FindMatchT,
+                ShapeType.I1 => LogType.FindMatchLineOneSide,
+                ShapeType.I2 => LogType.FindMatchLineBothSide,
+                ShapeType.Cube => LogType.FindMatchCube,
+                _ => LogType.FindMatchLineOneSide
+            };
+            BoardDebugger.Log("high value", logType);
+            return true;
+        }
+
+        private void FindMatchShapeOf(BlockData blockData, List<ShapeMask> shapeMasks, ref HashSet<MatchShape> matchShapes, LogType logType)
         {
             BoardDebugger.Log(blockData.array2dIdx, logType);
             BoardDebugger.Indent(logType);

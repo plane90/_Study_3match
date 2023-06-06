@@ -102,7 +102,7 @@ namespace Tests.EditMode
             _matchFinder = new MatchFinder(boardData);
 
             _sw.Restart();
-            _matchFinder.IsMatchAt(boardData.GetBlockDataAt(2, 0), out var matches);
+            _matchFinder.IsMatchAt(boardData.GetBlockDataAt(2, 0), out HashSet<BlockData> matches);
             UnityEngine.Debug.Log($"IsMatchAt Done: {_sw.Elapsed.TotalMilliseconds.ToString()}ms");
             Assert.IsTrue(matches.Count == 5);
             Assert.IsTrue(matches.Contains(boardData.GetBlockDataAt(0, 0)));
@@ -126,7 +126,7 @@ namespace Tests.EditMode
             _matchFinder = new MatchFinder(boardData);
 
             _sw.Restart();
-            _matchFinder.IsMatchAt(boardData.GetBlockDataAt(0, 1), out var matches);
+            _matchFinder.IsMatchAt(boardData.GetBlockDataAt(0, 1), out HashSet<BlockData> matches);
             UnityEngine.Debug.Log($"IsMatchAt Done: {_sw.Elapsed.TotalMilliseconds.ToString()}ms");
             Assert.IsTrue(matches.Count == 5);
             Assert.IsTrue(matches.Contains(boardData.GetBlockDataAt(0, 0)));
@@ -150,7 +150,7 @@ namespace Tests.EditMode
             _matchFinder = new MatchFinder(boardData);
 
             _sw.Restart();
-            _matchFinder.IsMatchAt(boardData.GetBlockDataAt(0, 1), out var matches);
+            _matchFinder.IsMatchAt(boardData.GetBlockDataAt(0, 1), out HashSet<BlockData> matches);
             UnityEngine.Debug.Log($"IsMatchAt Done: {_sw.Elapsed.TotalMilliseconds.ToString()}ms");
             Assert.IsTrue(matches.Count == 4);
             Assert.IsTrue(matches.Contains(boardData.GetBlockDataAt(0, 1)));
@@ -209,12 +209,48 @@ namespace Tests.EditMode
             _matchFinder = new MatchFinder(boardData);
 
             _sw.Restart();
-            _matchFinder.IsMatchAt(boardData.GetBlockDataAt(0, 1), out var matches);
+            _matchFinder.IsMatchAt(boardData.GetBlockDataAt(0, 1), out HashSet<BlockData> matches);
             UnityEngine.Debug.Log($"IsMatchAt Done: {_sw.Elapsed.TotalMilliseconds.ToString()}ms");
             Assert.IsTrue(matches.Count == 3);
             Assert.IsTrue(matches.Contains(boardData.GetBlockDataAt(0, 1)));
             Assert.IsTrue(matches.Contains(boardData.GetBlockDataAt(1, 1)));
             Assert.IsTrue(matches.Contains(boardData.GetBlockDataAt(2, 1)));
+
+            _sw.Stop();
+        }
+        
+        [Test(Description = "I자형(양옆 체크) 블록을 찾아낸다.")]
+        public void IsMatchAtHints()
+        {
+            var boardData = new BoardData(new[,]
+            {
+                { BlockType.Yellow, BlockType.Red, BlockType.Yellow },
+                { BlockType.Yellow, BlockType.Blue, BlockType.Red },
+                { BlockType.Blue, BlockType.Blue, BlockType.Green },
+            });
+            _matchFinder = new MatchFinder(boardData);
+
+            HashSet<BlockData> matches;
+            
+            _sw.Restart();
+            _matchFinder.IsMatchAt(boardData.GetBlockDataAt(1, 1), out matches);
+            UnityEngine.Debug.Log($"IsMatchAt Done: {_sw.Elapsed.TotalMilliseconds.ToString()}ms");
+            Assert.IsTrue(matches.Count == 3);
+            Assert.IsTrue(matches.Contains(boardData.GetBlockDataAt(0, 1)));
+            Assert.IsTrue(matches.Contains(boardData.GetBlockDataAt(1, 1)));
+            Assert.IsTrue(matches.Contains(boardData.GetBlockDataAt(2, 1)));
+            
+            boardData = new BoardData(new[,]
+            {
+                { BlockType.Blue, BlockType.Green, BlockType.Blue, },
+                { BlockType.Red, BlockType.Blue, BlockType.Blue, },
+                { BlockType.Green, BlockType.Yellow, BlockType.Green, },
+            });
+            _matchFinder = new MatchFinder(boardData);
+
+            _sw.Restart();
+            Assert.IsFalse(_matchFinder.IsMatchAt(boardData.GetBlockDataAt(1, 1), out matches));
+            UnityEngine.Debug.Log($"IsMatchAt Done: {_sw.Elapsed.TotalMilliseconds.ToString()}ms");
 
             _sw.Stop();
         }

@@ -25,6 +25,7 @@
             BlockDataArray2D = blockDataArray2D.Clone() as BlockData[,];
         }
 
+        /// Deep Copy
         public BoardData(BoardData other) : this(other.Rows, other.Cols, other.BlockDataArray2D) { }
 
         public BlockType GetCurBlockTypeAt(BoardVec2 array2dIdx) => BlockDataArray2D[array2dIdx.Y, array2dIdx.X].currentType;

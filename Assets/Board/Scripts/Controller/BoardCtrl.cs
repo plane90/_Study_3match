@@ -1,10 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Board.Editor;
 using Board.Model;
 using Board.View;
 using DG.Tweening;
 using MyBox;
+using MyBox.EditorTools;
 using UnityEngine;
 using UnityEngine.Assertions;
 using LogType = Board.Editor.LogType;
@@ -27,8 +29,11 @@ namespace Board.Presenter
         private readonly Dictionary<Block, BlockData> _blockDataMap = new();
         private BoardRectInfo _boarRectInfo;
         private MatchFinder _matchFinder;
-        [SerializeField] private RectTransform rect;
+        private Dictionary<MatchShape, BoardVec2> _hintsDataMap;
         
+        [SerializeField] private RectTransform rect;
+        private HashSet<MatchShape> _hintsShape;
+
         public BoardData GetBoardData() => _boardData;
         
         public void InitBoardData(BoardData boardData)
@@ -38,7 +43,7 @@ namespace Board.Presenter
             _boarRectInfo = new BoardRectInfo(boardData.Rows, boardData.Cols, _boardRectTransform);
             _blocks = new Block[boardData.Rows, boardData.Cols];
             
-            VerifyBoard();
+            VerifyAlreadyMatch(out _);
         }
 
         [ButtonMethod()]
@@ -49,17 +54,23 @@ namespace Board.Presenter
             _blocks = new Block[rows, cols];
             _matchFinder = new MatchFinder(_boardData);
             
-            VerifyBoard();
+            VerifyAlreadyMatch(out _);
         }
 
-        private void VerifyBoard()
+        private void VerifyAlreadyMatch(out bool hasPopulated)
         {
             var matchedBlocksData = _matchFinder.GetMatchedBlocksData();
+            if (matchedBlocksData.Count == 0)
+            {
+                hasPopulated = false;
+                return;
+            }
             while (matchedBlocksData.Count > 0)
             {
                 BlockData.PopulateBlockType(matchedBlocksData);
                 matchedBlocksData = _matchFinder.GetMatchedBlocksData();
             }
+            hasPopulated = true;
         }
 
         [ButtonMethod()]
@@ -85,6 +96,94 @@ namespace Board.Presenter
                     _blockDataMap[block] = _boardData.GetBlockDataAt(idx);
                     _blocks[y, x] = block;
                 }
+            }
+
+            VerifyNoMatch();
+        }
+
+        private void VerifyNoMatch()
+        {
+            SetHintMatchShapes();
+            if (_hintsShape.Count == 0)
+            {
+                do
+                {
+                    Shuffle.Execute(_boardData.BlockDataArray2D, _blocks);
+                    VerifyAlreadyMatch(out var hasPopulated);
+                    if (hasPopulated)
+                    {
+                        SetHintMatchShapes();
+                        if (_hintsShape.Count != 0)
+                            break;
+                        continue;
+                    } 
+                    SetHintMatchShapes();
+                } while (_hintsShape.Count == 0);
+                UpdateBlockViewShuffle();
+            }
+        }
+
+        private void SetHintMatchShapes()
+        {
+            var boardDataClone = new BoardData(_boardData);
+            var matchFinder = new MatchFinder(boardDataClone);
+            var directions = new []{ BoardVec2.up, BoardVec2.right, BoardVec2.down, BoardVec2.left };
+            _hintsDataMap = new Dictionary<MatchShape, BoardVec2>();
+            _hintsShape = new HashSet<MatchShape>();
+            for (int y = 0; y < boardDataClone.Rows; y++)
+            {
+                for (int x = 0; x < boardDataClone.Cols; x++)
+                {
+                    var curIdx = new BoardVec2(y, x);
+                    var curData = boardDataClone.GetBlockDataAt(curIdx);
+                    foreach (var dir in directions)
+                    {
+                        var nextIdx = curIdx + dir;
+                        if (nextIdx.Y < 0 || nextIdx.Y >= boardDataClone.Rows || nextIdx.X < 0 || nextIdx.X >= boardDataClone.Cols)
+                            continue;
+                        var nextData = boardDataClone.GetBlockDataAt(curIdx + dir);
+                        
+                        var prevCurData = curData.array2dIdx;
+                        var prevNextData = nextData.array2dIdx;
+                        (curData.array2dIdx, nextData.array2dIdx) = (prevNextData, prevCurData);
+                        boardDataClone.SetBlockDataAt(prevCurData, nextData);
+                        boardDataClone.SetBlockDataAt(prevNextData, curData);
+
+                        if (matchFinder.IsMatchAt(curIdx, out var candidates))
+                        {
+                            candidates.ForEach((x) =>
+                            {
+                                _hintsShape.Add(x);
+                                _hintsDataMap[x] = curIdx;
+                            });
+                        }
+                        
+                        (curData.array2dIdx, nextData.array2dIdx) = (prevCurData, prevNextData);
+                        boardDataClone.SetBlockDataAt(prevCurData, curData);
+                        boardDataClone.SetBlockDataAt(prevNextData, nextData);
+                    }
+                }
+            }
+        }
+
+        private void UpdateBlockViewShuffle()
+        {
+            var seq = DOTween.Sequence();
+            foreach (var blockData in _boardData.BlockDataArray2D)
+            {
+                var block = GetBlockAt(blockData.array2dIdx);
+                block.name = blockData.array2dIdx;
+                var color = blockData.currentType switch
+                {
+                    BlockType.Red => Color.red,
+                    BlockType.Green => Color.green,
+                    BlockType.Blue => Color.blue,
+                    BlockType.Yellow => Color.yellow,
+                    _ => Color.red
+                };
+                block.SetLooks(color);
+                var pos = _boarRectInfo.GetBlockWorldPosAt(blockData.array2dIdx);
+                seq.Join(block.transform.DOMove(pos, 2.0f)).OnComplete(() => blockData.state = BlockState.Enable);
             }
         }
 
@@ -235,7 +334,7 @@ namespace Board.Presenter
         private bool CheckMatchAndDisable(BlockData blockData)
         {
             bool isMatch = false;
-            if (_matchFinder.IsMatchAt(blockData, out var matchedBlocksData))
+            if (_matchFinder.IsMatchAt(blockData, out HashSet<BlockData> matchedBlocksData))
             {
                 isMatch = true;
                 if (matchedBlocksData.Any((x) => x.state == BlockState.Updating))
