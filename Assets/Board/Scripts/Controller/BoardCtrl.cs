@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Board.Editor;
 using Board.Model;
 using Board.View;
 using DG.Tweening;
 using MyBox;
-using MyBox.EditorTools;
 using UnityEngine;
 using UnityEngine.Assertions;
 using LogType = Board.Editor.LogType;
@@ -109,14 +107,8 @@ namespace Board.Presenter
                 do
                 {
                     Shuffle.Execute(_boardData.BlockDataArray2D, _blocks);
-                    VerifyAlreadyMatch(out var hasPopulated);
-                    if (hasPopulated)
-                    {
-                        SetHintMatchShapes();
-                        if (_hintsShape.Count != 0)
-                            break;
+                    if (_matchFinder.GetMatchedBlocksData().Count > 0)
                         continue;
-                    } 
                     SetHintMatchShapes();
                 } while (_hintsShape.Count == 0);
                 UpdateBlockViewShuffle();
