@@ -12,7 +12,7 @@ namespace Board.View
         private bool _isDragged;
         private Vector3 _anchorPosDest;
         private bool _isDrop = false;
-        private readonly float _initVelocity = -100f;
+        private readonly float _initVelocity = -50f;
         private float _velocity;
         private readonly float _gravity = -50f;
 
@@ -33,6 +33,7 @@ namespace Board.View
         public void HideAt(Vector2 pos)
         {
             _rectTransform.anchoredPosition = pos;
+            _velocity = _initVelocity;
             this.enabled = false;
         }
 

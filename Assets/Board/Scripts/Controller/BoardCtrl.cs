@@ -7,7 +7,6 @@ using DG.Tweening;
 using MyBox;
 using UnityEngine;
 using UnityEngine.Assertions;
-using LogType = Board.Editor.LogType;
 using Random = UnityEngine.Random;
 
 namespace Board.Presenter
@@ -45,7 +44,7 @@ namespace Board.Presenter
         }
 
         [ButtonMethod()]
-        public void InitBoardData()
+        private void InitBoardData()
         {
             _boardData = new BoardData(rows, cols);
             _boarRectInfo = new BoardRectInfo(rows, cols, _boardRectTransform);
@@ -96,10 +95,10 @@ namespace Board.Presenter
                 }
             }
 
-            VerifyNoMatch();
+            VerifyNoMatchAndSetHint();
         }
 
-        private void VerifyNoMatch()
+        private void VerifyNoMatchAndSetHint()
         {
             SetHintMatchShapes();
             if (_hintsShape.Count == 0)
@@ -347,7 +346,7 @@ namespace Board.Presenter
         {
             var seq = DOTween.Sequence();
             seq.Pause();
-            BoardDebugger.Log($"Disable At {toDisableData.First().array2dIdx}", LogType.Disable);
+            IndentLogger.Log($"Disable At {toDisableData.First().array2dIdx}");
             foreach (var blockData in toDisableData)
             {
                 blockData.state = BlockState.Updating;
@@ -360,50 +359,56 @@ namespace Board.Presenter
         private TweenCallback OnDisableDone(IEnumerable<BlockData> disabledData) =>
             () =>
             {
-                BoardDebugger.Log($"Disable Done {disabledData.First().array2dIdx}", LogType.Disable);
+                IndentLogger.Log($"Disable Done {disabledData.First().array2dIdx}");
                 disabledData.ForEach((x) => x.state = BlockState.Disable);
                 HideDisabledBlockAndDropOrPopulate();
             };
 
         private void HideDisabledBlockAndDropOrPopulate()
         {
-            BoardDebugger.Indent(LogType.Disable);
+            IndentLogger.Indent();
             for (int x = 0; x < _boardData.Cols; x++)
             {
                 int levelCnt = 0;
-                BlockData prevDisabled = null;
+                var prevDisables = new List<BlockData>();
                 for (int y = _boardData.Rows - 1; y >= 0; y--)
                 {
                     var disabled = _boardData.BlockDataArray2D[y, x];
                     if (!IsDisableBlockData(disabled)) 
                         continue;
                     
-                    if (prevDisabled != null && prevDisabled != disabled)
-                        levelCnt++;
-                    var idxTop = new BoardVec2(-1 - levelCnt, disabled.array2dIdx.X);
-                    GetBlockAt(disabled.array2dIdx).HideAt(_boarRectInfo.GetBlockAnchoredPosAt(idxTop));
-                    prevDisabled = disabled;
-                    
-                    Debug.Log(idxTop);
                     
                     if (FindDropTargetData(y - 1, x, out var toDrop, out var isUpdating))
                     {
                         SetDataSwap(disabled, toDrop);
                         UpdateBlockViewDrop(toDrop);
-                        BoardDebugger.Log($"Drop At {toDrop.array2dIdx}", LogType.Disable);
+                        IndentLogger.Log($"Drop At {toDrop.array2dIdx}");
                     }
                     else
                     {
                         if (isUpdating)
                             break;
+                        HideBlock(prevDisables, disabled, ref levelCnt);
                         SetDataPopulate(disabled);
                         UpdateBlockViewPopulated(disabled);
-                        BoardDebugger.Log($"Pop At {disabled.array2dIdx}", LogType.Disable);
+                        IndentLogger.Log($"Pop At {disabled.array2dIdx}");
                     }
                 }
-                BoardDebugger.Log($"", LogType.Disable);
             }
-            BoardDebugger.Unindent(LogType.Disable);
+            IndentLogger.Unindent();
+        }
+
+        private void HideBlock(List<BlockData> prevDisables, BlockData disabled, ref int levelCnt)
+        {
+            if (!prevDisables.Contains(disabled))
+                levelCnt++;
+            else
+                return;
+            var idxTop = new BoardVec2(-1 - levelCnt, disabled.array2dIdx.X);
+            GetBlockAt(disabled.array2dIdx).HideAt(_boarRectInfo.GetBlockAnchoredPosAt(idxTop));
+            prevDisables.Add(disabled);
+
+            Debug.Log(idxTop);
         }
 
         private static bool IsDisableBlockData(BlockData blockData) =>
@@ -465,7 +470,7 @@ namespace Board.Presenter
             if (found)
                 return;
             droppedBlock.Stop();
-            BoardDebugger.Log($"drop done {dropped.array2dIdx}", LogType.Disable);
+            IndentLogger.Log($"drop done {dropped.array2dIdx}");
             dropped.state = BlockState.Enable;
             CheckMatchAndDisable(dropped);
             HideDisabledBlockAndDropOrPopulate();

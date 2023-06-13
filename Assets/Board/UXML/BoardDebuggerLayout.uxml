@@ -49,7 +49,7 @@
             </ui:VisualElement>
         </ui:ScrollView>
     </ui:VisualElement>
-    <ui:VisualElement name="board-debugger-logs" style="flex-shrink: 1; flex-grow: 0; flex-basis: auto;">
+    <ui:VisualElement name="board-debugger-logs" style="flex-shrink: 1; flex-grow: 1; flex-basis: auto;">
         <ui:Label text="Match Logs:" display-tooltip-when-elided="true" name="Label" style="-unity-font-style: bold;" />
         <ui:Button text="Clear" display-tooltip-when-elided="true" name="board-debugger__clear-button" style="justify-content: flex-start; align-items: stretch; width: 50px; height: 20px; left: auto;" />
         <ui:ScrollView style="flex-basis: 70%;">
@@ -68,17 +68,6 @@
                 </ui:Foldout>
                 <ui:Foldout text="T Shape" name="Foldout" style="margin-bottom: 10px; flex-shrink: 0; flex-wrap: nowrap; flex-direction: column;">
                     <ui:GroupBox text="gkjasdklfjlaksd&#10;zxc&#10;zx&#10;c&#10;zxc&#10;zx&#10;c" name="board-debugger__match-shape-t-cube-box" style="background-color: rgb(0, 0, 0);" />
-                </ui:Foldout>
-            </ui:VisualElement>
-        </ui:ScrollView>
-    </ui:VisualElement>
-    <ui:VisualElement name="board-debugger-logs" style="flex-shrink: 1; flex-grow: 1; flex-basis: auto;">
-        <ui:Label text="Disable Logs:" display-tooltip-when-elided="true" name="Label" style="-unity-font-style: bold;" />
-        <ui:Button text="Clear" display-tooltip-when-elided="true" name="board-debugger__clear-disable-log-button" style="justify-content: flex-start; align-items: stretch; width: 50px; height: 20px; left: auto;" />
-        <ui:ScrollView style="flex-basis: 70%;">
-            <ui:VisualElement style="flex-direction: row;">
-                <ui:Foldout text="Disable" name="Foldout" style="margin-bottom: 10px; flex-shrink: 0;">
-                    <ui:GroupBox text="log log lgo&#10;lgog&#10;asdfa" name="board-debugger__disable-log-box" style="background-color: rgb(0, 0, 0);" />
                 </ui:Foldout>
             </ui:VisualElement>
         </ui:ScrollView>

@@ -22,7 +22,6 @@ namespace Board.Editor
         private const string MatchLineBothLogName = "board-debugger__match-line-both-log-box";
         private const string MatchShapeLLogName = "board-debugger__match-shape-l-log-box";
         private const string MatchShapeTLogName = "board-debugger__match-shape-t-cube-box";
-        private const string DisableLogName = "board-debugger__disable-log-box";
         
         private const string BlockStateBorderName = "block-component-debug__state-border";
         private const string BlockTypeName = "block-component-debug__type";
@@ -34,13 +33,11 @@ namespace Board.Editor
         private Label _cols;
         private Button _reloadButton;
         private Button _clearMatchLogButton;
-        private Button _clearDisableLogButton;
         private BoardDebuggerLog _matchLineOneLog;
         private BoardDebuggerLog _matchCubeLog;
         private BoardDebuggerLog _matchLineBothLog;
         private BoardDebuggerLog _matchShapeLLog;
         private BoardDebuggerLog _matchShapeTLog;
-        private BoardDebuggerLog _disableLog;
 
         private VisualElement[] _rowParents;
         private static BoardDebugger _instance;
@@ -96,14 +93,11 @@ namespace Board.Editor
             _reloadButton.RegisterCallback<ClickEvent>(ReloadGUI);
             _clearMatchLogButton = rootVisualElement.Q<Button>("board-debugger__clear-button");
             _clearMatchLogButton.RegisterCallback<ClickEvent>(ClearMatchLog);
-            _clearDisableLogButton = rootVisualElement.Q<Button>("board-debugger__clear-disable-log-button");
-            _clearDisableLogButton.RegisterCallback<ClickEvent>(ClearDisableLog);
             _matchLineOneLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(MatchLineOneLogName));
             _matchCubeLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(MatchCubeLogName));
             _matchLineBothLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(MatchLineBothLogName));
             _matchShapeLLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(MatchShapeLLogName));
             _matchShapeTLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(MatchShapeTLogName));
-            _disableLog = new BoardDebuggerLog(rootVisualElement.Q<GroupBox>(DisableLogName));
         }
 
         private void ClearMatchLog(ClickEvent evt)
@@ -113,11 +107,6 @@ namespace Board.Editor
             _matchLineBothLog.Clear();
             _matchShapeLLog.Clear();
             _matchShapeTLog.Clear();
-        }
-
-        private void ClearDisableLog(ClickEvent evt)
-        {
-            _disableLog.Clear();
         }
 
         private void ReloadGUI(ClickEvent evt)
@@ -235,9 +224,6 @@ namespace Board.Editor
                 case LogType.FindMatchT:
                     _instance._matchShapeTLog.Log(msg);
                     break;
-                case LogType.Disable:
-                    _instance._disableLog.Log(msg);
-                    break;
             }
         }
         
@@ -262,9 +248,6 @@ namespace Board.Editor
                 case LogType.FindMatchT:
                     _instance._matchShapeTLog.Indent();
                     break;
-                case LogType.Disable:
-                    _instance._disableLog.Indent();
-                    break;
             }
         }
         
@@ -288,9 +271,6 @@ namespace Board.Editor
                     break;
                 case LogType.FindMatchT:
                     _instance._matchShapeTLog.Unindent();
-                    break;
-                case LogType.Disable:
-                    _instance._disableLog.Unindent();
                     break;
             }
         }
